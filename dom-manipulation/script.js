@@ -7,6 +7,45 @@ let quotes = JSON.parse(localStorage.getItem('quotes')) || [
     {text: "You only live once, but if you do it right, once is enough.", category: "Life"}
 ];
 
+let currentCategory = localStorage.getItem('selectedCategory') || 'all';
+
+
+function populateCategories() {
+    const categories = [...new Set(quotes.map(q => q.category))];
+    const select = document.createElement('select');
+    select.id = 'categoryFilter';
+    select.innerHTML = `
+        <option value="all" ${currentCategory === 'all' ? 'selected' : ''}>All Categories</option>
+        ${categories.map(cat => 
+            `<option value="${cat}" ${currentCategory === cat ? 'selected' : ''}>${cat}</option>`
+        ).join('')}
+    `;
+    select.onchange = function() {
+        currentCategory = this.value;
+        localStorage.setItem('selectedCategory', currentCategory);
+        filterQuotes();
+    };
+    document.body.insertBefore(select, quoteDisplay.nextSibling);
+}
+
+function filterQuotes() {
+    const filtered = currentCategory === 'all' 
+        ? quotes 
+        : quotes.filter(q => q.category === currentCategory);
+    
+    if (filtered.length === 0) {
+        quoteDisplay.innerHTML = `<p>No quotes found for "${currentCategory}"</p>`;
+        return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * filtered.length);
+    const randomQuote = filtered[randomIndex];
+    quoteDisplay.innerHTML = `
+        <p><strong>"${randomQuote.text}"</strong></p>
+        <p><em>Category: ${randomQuote.category}</em></p>
+        <small>Showing ${filtered.length} quote(s)</small>
+    `;
+}
 
 function showRandomQuote() {
     const randomIndex = Math.floor(Math.random() * quotes.length);
@@ -15,6 +54,10 @@ function showRandomQuote() {
         <p><strong>"${randomQuote.text}"</strong></p>
         <p><em>Category: ${randomQuote.category}</em></p>
     `;
+}
+
+function saveQuotes() {
+    localStorage.setItem('quotes', JSON.stringify(quotes));
 }
 
 function createAddQuoteForm() {
@@ -58,6 +101,18 @@ function addQuote() {
     }
 }
 
+function updateCategoryFilter() {
+    const select = document.getElementById('categoryFilter');
+    if (!select) return;
+    
+    const categories = getCategories();
+    select.innerHTML = `
+        <option value="all" ${currentCategory === 'all' ? 'selected' : ''}>All Categories</option>
+        ${categories.map(cat => 
+            `<option value="${cat}" ${currentCategory === cat ? 'selected' : ''}>${cat}</option>`
+        ).join('')}
+    `;
+}
 
 function exportToJson() {
     const dataStr = JSON.stringify(quotes, null, 2);
@@ -84,7 +139,8 @@ function importFromJsonFile(event) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    showRandomQuote();
+    populateCategories();
+    filterQuotes();
     
     document.getElementById('newQuote').onclick = showRandomQuote;
     
