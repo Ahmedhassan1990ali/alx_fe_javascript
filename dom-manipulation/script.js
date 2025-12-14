@@ -1,7 +1,7 @@
 const quoteDisplay = document.getElementById("quoteDisplay");
 const newQuote = document.getElementById("newQuote");
 
-let quotes = [
+let quotes = JSON.parse(localStorage.getItem('quotes')) || [
     {text: "Be yourself; everyone else is already taken.", category: "Wisdom"},
     {text: "So many books, so little time.", category: "Reading"},
     {text: "You only live once, but if you do it right, once is enough.", category: "Life"}
@@ -30,8 +30,6 @@ function createAddQuoteForm() {
         <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
         <button onclick="addQuote()">Add Quote</button>
     `;
-    
-    // Add form to page
     document.body.appendChild(form);
 }
 
@@ -45,6 +43,9 @@ function addQuote() {
     if (text && category) {
         // Add to array
         quotes.push({text: text, category: category});
+
+        // Save to localStorage
+        localStorage.setItem('quotes', JSON.stringify(quotes)); 
         
         // Clear inputs
         textInput.value = '';
