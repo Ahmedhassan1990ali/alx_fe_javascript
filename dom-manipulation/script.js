@@ -1,3 +1,5 @@
+const API_URL = 'https://jsonplaceholder.typicode.com/posts';
+let lastSyncId = localStorage.getItem('lastSyncId') || 0;
 const quoteDisplay = document.getElementById("quoteDisplay");
 const newQuote = document.getElementById("newQuote");
 
@@ -89,6 +91,13 @@ function addQuote() {
 
         // Save to localStorage
         localStorage.setItem('quotes', JSON.stringify(quotes)); 
+
+        // Save to Server
+        syncQuotes();
+
+        // Update filters
+        updateCategoryFilter();
+        filterQuotes();
         
         // Clear inputs
         textInput.value = '';
@@ -96,6 +105,8 @@ function addQuote() {
         
         // Remove form
         document.querySelector('#addForm').remove();
+
+        showNotification('Quote saved and synced to server');
     } else {
         alert('Please fill both fields');
     }
@@ -138,6 +149,88 @@ function importFromJsonFile(event) {
     reader.readAsText(file);
 }
 
+async function fetchQuotesFromServer() {
+    try {
+        // Fetch from server
+        const response = await fetch(`${API_URL}?_start=${lastSyncId}&_limit=5`);
+        const serverPosts = await response.json();
+        
+        // Convert posts to quotes format
+        const serverQuotes = serverPosts.map(post => ({
+            text: post.title.substring(0, 50) + (post.body ? '...' : ''),
+            category: 'Server'
+        }));
+        
+        // Add new quotes
+        const newQuotes = serverQuotes.filter(serverQuote => 
+            !quotes.some(localQuote => localQuote.text === serverQuote.text)
+        );
+        
+        if (newQuotes.length > 0) {
+            quotes.push(...newQuotes);
+            saveQuotes();
+            updateCategoryFilter();
+            showNotification(`Quotes synced with server!`);
+            
+            // Update last sync ID
+            if (serverPosts.length > 0) {
+                lastSyncId = Math.max(...serverPosts.map(p => p.id));
+                localStorage.setItem('lastSyncId', lastSyncId);
+            }
+        }
+        
+        return newQuotes.length;
+    } catch (error) {
+        console.error('Sync failed:', error);
+        return 0;
+    }
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.textContent = `🔔 ${message}`;
+    notification.style.cssText = 'background: #4CAF50; color: white; padding: 10px; margin: 5px; border-radius: 5px;';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+async function syncQuotes() {
+    try {
+        // Save most recent quote to server
+        if (quotes.length > 0) {
+            const latestQuote = quotes[quotes.length - 1];
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: latestQuote.text,
+                    body: latestQuote.category,
+                    userId: 1
+                })
+            });
+            const savedData = await response.json();
+            console.log('Saved to server:', savedData);
+        }
+    } catch (error) {
+        console.error('Save to server failed:', error);
+    }
+}
+
+function manualSync() {
+    fetchQuotesFromServer().then(count => {
+        if (count === 0) {
+            showNotification('No new quotes from server');
+        }
+    });
+}
+
+function resolveConflict() {
+    fetchQuotesFromServer().then(() => {
+        filterQuotes();
+        showNotification('Conflict resolved with server data');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     populateCategories();
     filterQuotes();
@@ -149,4 +242,20 @@ document.addEventListener('DOMContentLoaded', function() {
     addButton.onclick = createAddQuoteForm;
     document.body.appendChild(addButton);
 
+     const syncButton = document.createElement('button');
+    syncButton.textContent = '🔄 Sync Now';
+    syncButton.onclick = manualSync;
+    document.body.appendChild(syncButton);
+    
+    // Add conflict resolution button
+    const conflictButton = document.createElement('button');
+    conflictButton.textContent = '⚠️ Resolve Conflict';
+    conflictButton.onclick = resolveConflict;
+    document.body.appendChild(conflictButton);
+    
+    // Auto-sync every 30 seconds
+    setInterval(manualSync, 30000);
+    
+    // Initial sync
+    setTimeout(manualSync, 2000);
     });
