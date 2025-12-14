@@ -58,16 +58,39 @@ function addQuote() {
     }
 }
 
+
+function exportToJson() {
+    const dataStr = JSON.stringify(quotes, null, 2);
+    const blob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quotes.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importFromJsonFile(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const imported = JSON.parse(e.target.result);
+        quotes.push(...imported);
+        saveQuotes();
+        showRandomQuote();
+        alert(`Imported ${imported.length} quotes`);
+    };
+    reader.readAsText(file);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Show first quote
     showRandomQuote();
     
-    // Set up new quote button
     document.getElementById('newQuote').onclick = showRandomQuote;
     
-    // Add button to create form
     const addButton = document.createElement('button');
     addButton.textContent = 'Add New Quote';
     addButton.onclick = createAddQuoteForm;
     document.body.appendChild(addButton);
-});
+
+    });
